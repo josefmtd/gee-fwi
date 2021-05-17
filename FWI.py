@@ -23,13 +23,13 @@ class FWICalculator:
         total precipitation in mm in the past 24 hours, observed in noon
     """
 
-    def __init__(self, date, temp, rhum, wind, rain):
+    def __init__(self, date_time, temp, rhum, wind, rain):
         """
         Constructs all the necessary attributes for the FWICalculator object.
 
         Parameters
         ----------
-        date : datetime.date
+        date_time : datetime.datetime
             the current date of observation
         temp : ee.Image
             temperature in degree Celsius observed in noon
@@ -40,7 +40,7 @@ class FWICalculator:
         rain : ee.Image
             total precipitation in mm in the past 24 hours, observed in noon
         """
-        self.date = date
+        self.date_time = date_time
         self.temp = temp
         self.rhum = rhum
         self.wind = wind
@@ -102,13 +102,13 @@ class FWICalculator:
         """
         self.dc_prev = ee.Image(dc_prev).clip(self.bounds)
 
-    def update_daily_parameters(self, date, temp, rhum, wind, rain):
+    def update_daily_parameters(self, date_time, temp, rhum, wind, rain):
         """
         Updates the daily parameters required to calculate FWI
 
         Parameters
         ----------
-        date : datetime.date
+        date_time : datetime.datetime
             the current date of observation
         temp : ee.Image
             temperature in degree Celsius observed in noon
@@ -123,8 +123,9 @@ class FWICalculator:
         self.ffmc_prev = self.ffmc
         self.dmc_prev = self.dmc
         self.dc_prev = self.dc
-        self.date_prev = self.date
+        self.date_time_prev = self.date_time
 
+        self.date_time = date_time
         self.temp = temp
         self.rhum = rhum
         self.wind = wind
@@ -142,7 +143,7 @@ class FWICalculator:
         Updates the drying factor if the month is changed
         """
         try:
-            cal = (self.date.month - self.date_prev.month) > 0
+            cal = (self.date_time.month - self.date_time_prev.month) > 0
         except AttributeError:
             cal = 1
 
@@ -154,7 +155,7 @@ class FWICalculator:
         Updates the day length if the month is changed
         """
         try:
-            cal = (self.date.month - self.date_prev.month) > 0
+            cal = (self.date_time.month - self.date_time_prev.month) > 0
         except AttributeError:
             cal = 1
 
@@ -175,8 +176,8 @@ class FWICalculator:
         mask_1 = latitude.gt(0)
         mask_2 = latitude.lte(0)
 
-        factor_1 = mask_1 * ee.Image(LfN[self.date.month - 1])
-        factor_2 = mask_2 * ee.Image(LfS[self.date.month - 1])
+        factor_1 = mask_1 * ee.Image(LfN[self.date_time.month - 1])
+        factor_2 = mask_2 * ee.Image(LfS[self.date_time.month - 1])
 
         self.drying_factor = factor_1 + factor_2
 
@@ -203,10 +204,10 @@ class FWICalculator:
         mask_3 = latitude.lte(0) * latitude.gt(-30.0)
         mask_4 = latitude.lte(-30.0) * latitude.gt(-90.0)
 
-        length_1 = mask_1 * ee.Image(DayLength46N[self.date.month - 1])
-        length_3 = mask_3 * ee.Image(DayLength20S[self.date.month - 1])
-        length_2 = mask_2 * ee.Image(DayLength20N[self.date.month - 1])
-        length_4 = mask_4 * ee.Image(DayLength40S[self.date.month - 1])
+        length_1 = mask_1 * ee.Image(DayLength46N[self.date_time.month - 1])
+        length_3 = mask_3 * ee.Image(DayLength20S[self.date_time.month - 1])
+        length_2 = mask_2 * ee.Image(DayLength20N[self.date_time.month - 1])
+        length_4 = mask_4 * ee.Image(DayLength40S[self.date_time.month - 1])
 
         self.day_length = length_1 + length_2 + length_3 + length_4
 
