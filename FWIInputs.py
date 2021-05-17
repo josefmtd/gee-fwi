@@ -41,16 +41,11 @@ class FWI_GFS:
             use gsmap or ERA5 for total precipitation
         """
         self.date_time = date_time
+        self.__time_stamp = int(self.date_time.timestamp()) * 1000
         self.bounds = bounds
         self.use_gsmap = use_gsmap
 
-        filter_end = self.date_time.date()
-        filter_start = filter_end - datetime.timedelta(days = 3)
-
-        forecast_time = int(self.date_time.timestamp()) * 1000
-        self.dataset = ee.ImageCollection('NOAA/GFS0P25') \
-                        .filterDate(str(filter_start), str(filter_end)) \
-                        .filterMetadata('forecast_time', 'equals', forecast_time)
+        self.dataset = ee.ImageCollection('NOAA/GFS0P25')
         self.__get_fwi_inputs()
 
     def __calculate_temperature(self):
@@ -58,21 +53,32 @@ class FWI_GFS:
         Calculates the GFS temperature
         """
         self.temp = self.dataset.select('temperature_2m_above_ground') \
-                        .mean().clip(self.bounds).rename('GFS_T')
+                        .closest(self.date_time.isoformat()) \
+                        .filterMetadata('forecast_time', 'equals', \
+                            self.__time_stamp).first() \
+                        .clip(self.bounds).rename('GFS_T')
 
     def __calculate_relative_humidity(self):
         """
         Calculates the GFS relative humidity
         """
         self.rhum = self.dataset.select('relative_humidity_2m_above_ground') \
-                        .mean().clip(self.bounds).rename('GFS_RH')
+                        .closest(self.date_time.isoformat()) \
+                        .filterMetadata('forecast_time', 'equals', \
+                            self.__time_stamp).first() \
+                        .clip(self.bounds).rename('GFS_RH')
 
     def __calculate_rain(self):
         """
         Calculates the GFS total rain
         """
+        one_hour_ms = 3.6e6
+
         self.rain = self.dataset.select('total_precipitation_surface') \
-                        .mean().clip(self.bounds).rename('GFS_R')
+                        .filterMetadata('forecast_time', 'equals', \
+                            local_time_stamp + one_hour_ms) \
+                        .filterMetadata('forecast_hours', 'equals', 24) \
+                        .first().clip(self.bounds).rename('GFS_R24H')
 
     def __calculate_wind(self):
         """
@@ -80,9 +86,17 @@ class FWI_GFS:
         and convert from m/s to kph
         """
         u_comp = self.dataset.select('u_component_of_wind_10m_above_ground') \
-                        .mean().clip(self.bounds)
+                        .closest(self.date_time.isoformat()) \
+                        .filterMetadata('forecast_time', 'equals', \
+                            self.__time_stamp).first() \
+                        .clip(self.bounds)
+
         v_comp = self.dataset.select('v_component_of_wind_10m_above_ground') \
-                        .mean().clip(self.bounds)
+                        .closest(self.date_time.isoformat()) \
+                        .filterMetadata('forecast_time', 'equals', \
+                            self.__time_stamp).first() \
+                        .clip(self.bounds)
+
         self.wind = (((u_comp ** 2 + v_comp ** 2) ** 0.5) * 3.6).rename('GFS_W')
 
     def __calculate_rain_gsmap(self):
@@ -96,7 +110,7 @@ class FWI_GFS:
                         .filterDate(start.isoformat(), \
                                     self.date_time.isoformat()) \
                         .reduce(ee.Reducer.sum()) \
-                        .clip(self.bounds)
+                        .clip(self.bounds).rename('GSMAP_R24H')
 
     def __get_fwi_inputs(self):
         """
