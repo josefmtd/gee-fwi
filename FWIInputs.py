@@ -76,7 +76,11 @@ class FWI_GFS:
 
         self.rain = self.dataset.select('total_precipitation_surface') \
                         .filterMetadata('forecast_time', 'equals', \
+<<<<<<< HEAD
                             self.__time_stamp + one_hour_ms) \
+=======
+                            local_time_stamp + one_hour_ms) \
+>>>>>>> 769b571519358236deb88df0709ca11d676050f1
                         .filterMetadata('forecast_hours', 'equals', 24) \
                         .first().clip(self.bounds).rename('GFS_R24H')
 
