@@ -24,7 +24,7 @@ class FWI_ERA5:
         total precipitation in mm in the past 24 hours, observed in noon
     """
 
-    def __init__(self, date_time, bounds):
+    def __init__(self, date_time, bounds, use_gsmap):
         """
         Constructs all the necessary attributes to get the raster data
         observed at a certain datetime inside a boundary
@@ -35,19 +35,30 @@ class FWI_ERA5:
             the datetime in noon local time for the observation
         bounds : ee.Geometry
             the boundary used to limit the ee.Image file
+        use_gsmap : boolean
+            use gsmap or ERA5 for total precipitation
         """
-        self.dataset = ee.ImageCollection('ECMWF/ERA5_LAND/HOURLY')
         self.date_time = date_time
         self.bounds = bounds
+        self.use_gsmap = use_gsmap
+
+        self.dataset = ee.ImageCollection('ECMWF/ERA5_LAND/HOURLY')
         self.__get_fwi_inputs()
 
     def __calculate_temperature(self):
+        """
+        Calculates the ERA5 temperature from Kelvin to Celsius
+        """
         temp = self.dataset.select('temperature_2m') \
                     .closest(self.date_time.isoformat()) \
                     .first().clip(self.bounds)
-        self.temp = temp - 273.15
+        self.temp = (temp - 273.15).rename('ERA5_T')
 
     def __calculate_relative_humidity(self):
+        """
+        Calculates the Relative Humidity from Dewpoint and temperature
+        in Celsius
+        """
         try:
             temp = self.temp
         except AttributeError:
@@ -60,18 +71,27 @@ class FWI_ERA5:
 
         self.rhum = 100 * (math.exp(1) ** ((17.625 * dew) / (243.04 + dew)) / \
                     math.exp(1) ** ((17.625 * temp) / (243.04 + temp)))
+        self.rhum = self.rhum.rename('ERA5_RH')
 
     def __calculate_rain(self):
+        """
+        Adds total_precipitation from past 24 hours and convert from m to mm
+        """
         start = self.date_time - datetime.timedelta(days = 1)
 
         rain_24h = self.dataset.select('total_precipitation') \
                         .filterDate(start.isoformat(), \
                                     self.date_time.isoformat()) \
-                        .reduce(ee.Reducer.sum())
+                        .reduce(ee.Reducer.sum()) \
+                        .clip(self.bounds)
 
-        self.rain = (rain_24h * 1000.0).clip(self.bounds)
+        self.rain = (rain_24h * 1000.0).rename('ERA5_R')
 
     def __calculate_wind(self):
+        """
+        Adds two vectors to find the wind speed scalar magnitude
+        and convert from m/s to kph
+        """
         u_comp = self.dataset.select('u_component_of_wind_10m') \
                         .closest(self.date_time.isoformat()) \
                         .first().clip(self.bounds)
@@ -79,12 +99,32 @@ class FWI_ERA5:
                         .closest(self.date_time.isoformat()) \
                         .first().clip(self.bounds)
         self.wind = ((u_comp ** 2 + v_comp ** 2) ** 0.5) * 3.6
+        self.wind = self.wind.rename('ERA5_W')
+
+    def __calculate_rain_gsmap(self):
+        """
+        Use JAXA GSMaP to get past 24 hours rain in mm
+        """
+        start = self.date_time - datetime.timedelta(days = 1)
+
+        self.rain = ee.ImageCollection("JAXA/GPM_L3/GSMaP/v6/operational") \
+                        .select('hourlyPrecipRate') \
+                        .filterDate(start.isoformat(), \
+                                    self.date_time.isoformat()) \
+                        .reduce(ee.Reducer.sum()) \
+                        .clip(self.bounds)
 
     def __get_fwi_inputs(self):
+        """
+        Calculate all the inputs required for FWI Calculation
+        """
         self.__calculate_temperature()
         self.__calculate_relative_humidity()
         self.__calculate_wind()
-        self.__calculate_rain()
+        if self.use_gsmap:
+            self.__calculate_rain_gsmap()
+        else:
+            self.__calculate_rain()
 
     def update_fwi_inputs(self, date_time):
         """
