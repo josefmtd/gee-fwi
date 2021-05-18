@@ -53,7 +53,9 @@ class FWI_GFS:
         Calculates the GFS temperature
         """
         self.temp = self.dataset.select('temperature_2m_above_ground') \
-                        .closest(self.date_time.isoformat()) \
+                        .filterDate((self.date_time - \
+                            datetime.timedelta(days = 1)) \
+                            .isoformat(), self.date_time.isoformat()) \
                         .filterMetadata('forecast_time', 'equals', \
                             self.__time_stamp).first() \
                         .clip(self.bounds).rename('GFS_T')
@@ -63,7 +65,9 @@ class FWI_GFS:
         Calculates the GFS relative humidity
         """
         self.rhum = self.dataset.select('relative_humidity_2m_above_ground') \
-                        .closest(self.date_time.isoformat()) \
+                        .filterDate((self.date_time - \
+                            datetime.timedelta(days = 1)) \
+                            .isoformat(), self.date_time.isoformat()) \
                         .filterMetadata('forecast_time', 'equals', \
                             self.__time_stamp).first() \
                         .clip(self.bounds).rename('GFS_RH')
@@ -74,15 +78,13 @@ class FWI_GFS:
         """
         one_hour_ms = 3.6e6
 
-        self.rain = self.dataset.select('total_precipitation_surface') \
+        rain_24h = self.dataset.select('total_precipitation_surface') \
                         .filterMetadata('forecast_time', 'equals', \
-<<<<<<< HEAD
                             self.__time_stamp + one_hour_ms) \
-=======
-                            local_time_stamp + one_hour_ms) \
->>>>>>> 769b571519358236deb88df0709ca11d676050f1
                         .filterMetadata('forecast_hours', 'equals', 24) \
-                        .first().clip(self.bounds).rename('GFS_R24H')
+                        .first().clip(self.bounds)
+
+        self.rain = rain_24h.rename('GFS_R24H')
 
     def __calculate_wind(self):
         """
@@ -90,13 +92,17 @@ class FWI_GFS:
         and convert from m/s to kph
         """
         u_comp = self.dataset.select('u_component_of_wind_10m_above_ground') \
-                        .closest(self.date_time.isoformat()) \
+                        .filterDate((self.date_time - \
+                            datetime.timedelta(days = 1)) \
+                            .isoformat(), self.date_time.isoformat()) \
                         .filterMetadata('forecast_time', 'equals', \
                             self.__time_stamp).first() \
                         .clip(self.bounds)
 
         v_comp = self.dataset.select('v_component_of_wind_10m_above_ground') \
-                        .closest(self.date_time.isoformat()) \
+                        .filterDate((self.date_time - \
+                            datetime.timedelta(days = 1)) \
+                            .isoformat(), self.date_time.isoformat()) \
                         .filterMetadata('forecast_time', 'equals', \
                             self.__time_stamp).first() \
                         .clip(self.bounds)
