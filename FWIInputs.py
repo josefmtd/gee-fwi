@@ -3,7 +3,7 @@ import eemont
 import math
 import datetime
 
-class FWI_GFS:
+class FWI_GFS_GSMAP:
     """
     NOAA/NASA Global Forecast System (384-Hour Predicted Atmosphere Data)
     from Google Earth Engine for Canadian Fire Weather Index System calculation
@@ -14,8 +14,6 @@ class FWI_GFS:
         the datetime in noon local time for the observation
     bounds : ee.Geometry
         the boundary used to limit the ee.Image file
-    use_gsmap : boolean
-        use gsmap data for precipitation
     temp : ee.Image
         temperature in degree Celsius observed in noon
     rhum : ee.Image
@@ -26,86 +24,47 @@ class FWI_GFS:
         total precipitation in mm in the past 24 hours, observed in noon
     """
 
-    def __init__(self, date_time, bounds, use_gsmap):
+    def __init__(self, date, bounds):
         """
         Constructs all the necessary attributes to get the raster data
-        observed at a certain datetime inside a boundary
+        observed at a certain date inside a boundary
 
         Attributes
         ----------
-        date_time : datetime
-            the datetime in noon local time for the observation
+        date : datetime.date
+            the date for observation
         bounds : ee.Geometry
             the boundary used to limit the ee.Image file
-        use_gsmap : boolean
-            use gsmap or ERA5 for total precipitation
         """
-        self.date_time = date_time
-        self.__time_stamp = int(self.date_time.timestamp()) * 1000
+        self.date = date
         self.bounds = bounds
-        self.use_gsmap = use_gsmap
 
-        self.dataset = ee.ImageCollection('NOAA/GFS0P25')
         self.__get_fwi_inputs()
 
     def __calculate_temperature(self):
         """
         Calculates the GFS temperature
         """
-        self.temp = self.dataset.select('temperature_2m_above_ground') \
-                        .filterDate((self.date_time - \
-                            datetime.timedelta(days = 1)) \
-                            .isoformat(), self.date_time.isoformat()) \
-                        .filterMetadata('forecast_time', 'equals', \
-                            self.__time_stamp).first() \
-                        .clip(self.bounds).rename('GFS_T')
+        self.temp = self.gfs.select('temperature_2m_above_ground') \
+                        .first().clip(self.bounds).rename('GFS_T')
 
     def __calculate_relative_humidity(self):
         """
         Calculates the GFS relative humidity
         """
-        self.rhum = self.dataset.select('relative_humidity_2m_above_ground') \
-                        .filterDate((self.date_time - \
-                            datetime.timedelta(days = 1)) \
-                            .isoformat(), self.date_time.isoformat()) \
-                        .filterMetadata('forecast_time', 'equals', \
-                            self.__time_stamp).first() \
-                        .clip(self.bounds).rename('GFS_RH')
-
-    def __calculate_rain(self):
-        """
-        Calculates the GFS total rain
-        """
-        one_hour_ms = 3.6e6
-
-        rain_24h = self.dataset.select('total_precipitation_surface') \
-                        .filterMetadata('forecast_time', 'equals', \
-                            self.__time_stamp + one_hour_ms) \
-                        .filterMetadata('forecast_hours', 'equals', 24) \
-                        .first().clip(self.bounds)
-
-        self.rain = rain_24h.rename('GFS_R24H')
+        self.rhum = self.gfs.select('relative_humidity_2m_above_ground') \
+                .first().clip(self.bounds).rename('GFS_T')                        .clip(self.bounds).rename('GFS_RH')
 
     def __calculate_wind(self):
         """
         Adds two vectors to find the wind speed scalar magnitude
         and convert from m/s to kph
         """
-        u_comp = self.dataset.select('u_component_of_wind_10m_above_ground') \
-                        .filterDate((self.date_time - \
-                            datetime.timedelta(days = 1)) \
-                            .isoformat(), self.date_time.isoformat()) \
-                        .filterMetadata('forecast_time', 'equals', \
-                            self.__time_stamp).first() \
-                        .clip(self.bounds)
+        u_comp = gfs.select('u_component_of_wind_10m_above_ground') \
+                    .first().clip(self.bounds)
 
-        v_comp = self.dataset.select('v_component_of_wind_10m_above_ground') \
-                        .filterDate((self.date_time - \
-                            datetime.timedelta(days = 1)) \
-                            .isoformat(), self.date_time.isoformat()) \
-                        .filterMetadata('forecast_time', 'equals', \
-                            self.__time_stamp).first() \
-                        .clip(self.bounds)
+        v_comp = gfs.select('u_component_of_wind_10m_above_ground') \
+                    .first().clip(self.bounds)
 
         self.wind = (((u_comp ** 2 + v_comp ** 2) ** 0.5) * 3.6).rename('GFS_W')
 
@@ -113,41 +72,45 @@ class FWI_GFS:
         """
         Use JAXA GSMaP to get past 24 hours rain in mm
         """
-        start = self.date_time - datetime.timedelta(days = 1)
-
-        self.rain = ee.ImageCollection("JAXA/GPM_L3/GSMaP/v6/operational") \
-                        .select('hourlyPrecipRate') \
-                        .filterDate(start.isoformat(), \
-                                    self.date_time.isoformat()) \
-                        .reduce(ee.Reducer.sum()) \
+        self.rain = self.gsmap.reduce(ee.Reducer.sum()) \
                         .clip(self.bounds).rename('GSMAP_R24H')
 
     def __get_fwi_inputs(self):
         """
         Calculate all the inputs required for FWI Calculation
         """
+        # Noon WIB
+        utc_datetime = datetime.datetime(self.date.year, \
+                            self.date.month, self.date.day, hour = 5)
+
+        self.gsmap = ee.ImageCollection('JAXA/GPM_L3/GSMaP/v6/operational') \
+            .filterDate((utc_datetime - timedelta(days = 1)).isoformat(), \
+                utc_datetime.isoformat()) \
+            .select('hourlyPrecipRateGC')
+
+        self.gfs = ee.ImageCollection('NOAA/GFS0P25') \
+            .filterDate((utc_datetime - timedelta(hours = 6)).isoformat(), \
+                utc_datetime.isoformat()) \
+            .filterMetadata('forecast_hours', 'equals', 5)
+
         self.__calculate_temperature()
         self.__calculate_relative_humidity()
         self.__calculate_wind()
-        if self.use_gsmap:
-            self.__calculate_rain_gsmap()
-        else:
-            self.__calculate_rain()
+        self.__calculate_rain_gsmap()
 
-    def update_fwi_inputs(self, date_time):
+    def update_fwi_inputs(self, date):
         """
         Updates the value of FWI input variables
 
         Parameters
         ----------
-        date_time : datetime
+        date: datetime.date
             next date and time for observation data request
         Returns
         -------
         None
         """
-        self.dataset = ee.ImageCollection('ECMWF/ERA5_LAND/HOURLY')
-        self.date_time = date_time
+        self.date = date
         self.__get_fwi_inputs()
 
 class FWI_ERA5:
