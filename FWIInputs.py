@@ -53,7 +53,7 @@ class FWI_GFS_GSMAP:
         Calculates the GFS relative humidity
         """
         self.rhum = self.gfs.select('relative_humidity_2m_above_ground') \
-                .first().clip(self.bounds).rename('GFS_T')                        .clip(self.bounds).rename('GFS_RH')
+                .first().clip(self.bounds).rename('GFS_RH')
 
     def __calculate_wind(self):
         """
