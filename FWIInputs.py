@@ -1,7 +1,7 @@
 import ee
 import eemont
 import math
-import datetime
+from datetime import datetime, date, timedelta
 
 class FWI_GFS_GSMAP:
     """
@@ -60,10 +60,10 @@ class FWI_GFS_GSMAP:
         Adds two vectors to find the wind speed scalar magnitude
         and convert from m/s to kph
         """
-        u_comp = gfs.select('u_component_of_wind_10m_above_ground') \
+        u_comp = self.gfs.select('u_component_of_wind_10m_above_ground') \
                     .first().clip(self.bounds)
 
-        v_comp = gfs.select('u_component_of_wind_10m_above_ground') \
+        v_comp = self.gfs.select('u_component_of_wind_10m_above_ground') \
                     .first().clip(self.bounds)
 
         self.wind = (((u_comp ** 2 + v_comp ** 2) ** 0.5) * 3.6).rename('GFS_W')
@@ -80,14 +80,16 @@ class FWI_GFS_GSMAP:
         Calculate all the inputs required for FWI Calculation
         """
         # Noon WIB
-        utc_datetime = datetime.datetime(self.date.year, \
-                            self.date.month, self.date.day, hour = 5)
+        utc_datetime = datetime(self.date.year, self.date.month, \
+            self.date.day, hour = 5)
 
+        # Last 24 hours data
         self.gsmap = ee.ImageCollection('JAXA/GPM_L3/GSMaP/v6/operational') \
             .filterDate((utc_datetime - timedelta(days = 1)).isoformat(), \
                 utc_datetime.isoformat()) \
             .select('hourlyPrecipRateGC')
 
+        # Latest prediction data
         self.gfs = ee.ImageCollection('NOAA/GFS0P25') \
             .filterDate((utc_datetime - timedelta(hours = 6)).isoformat(), \
                 utc_datetime.isoformat()) \
@@ -187,7 +189,7 @@ class FWI_ERA5:
         """
         Adds total_precipitation from past 24 hours and convert from m to mm
         """
-        start = self.date_time - datetime.timedelta(days = 1)
+        start = self.date_time - timedelta(days = 1)
 
         rain_24h = self.dataset.select('total_precipitation') \
                         .filterDate(start.isoformat(), \
@@ -215,7 +217,7 @@ class FWI_ERA5:
         """
         Use JAXA GSMaP to get past 24 hours rain in mm
         """
-        start = self.date_time - datetime.timedelta(days = 1)
+        start = self.date_time - timedelta(days = 1)
 
         self.rain = ee.ImageCollection("JAXA/GPM_L3/GSMaP/v6/operational") \
                         .select('hourlyPrecipRate') \
