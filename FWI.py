@@ -251,21 +251,23 @@ class FWICalculator:
                 0.18 * (21.1 - self.temp) * \
                 (1 - math.exp(1) ** (-0.115 * self.rhum))
 
-        k_o = 0.424 * (1 - ((100 - self.rhum) / 100) ** 1.7) + \
+        k_1 = 0.424 * (1 - ((100 - self.rhum) / 100) ** 1.7) + \
                 0.0694 * self.wind ** 0.5 * (1 - ((100 - self.rhum)/100) ** 8)
-        k = k_o * 0.581 * math.exp(1) ** (0.0365 * self.temp)
 
-        # The wetting and drying rate
-        k_d = k
-        k_w = k
+        k_o = 0.424 * (1 - ((100 - self.rhum) / 100) ** 1.7) + \
+                0.0694 * self.wind ** 0.5 * (1 - (self.rhum / 100) ** 8)
+
+        # Wetting and drying rate
+        k_d = k_o * 0.581 * math.exp(1) ** (0.0365 * self.temp)
+        k_w = k_1 * 0.581 * math.exp(1) ** (0.0365 * self.temp)
 
         # Calculate the drying/wetting phase based on the moisture content
         drying = mo.gt(E_d)
         wetting = mo.lt(E_w)
-        no_change = (drying * wetting).Not()
+        no_change = (drying + wetting).Not()
 
-        m_drying = drying * (E_d + (mo - E_d) * 10 ** (-1 * k_d))
-        m_wetting = wetting * (E_w - (E_w - mo) * 10 ** (-1 * k_w))
+        m_drying = drying * (E_d + (mo - E_d) / 10 ** k_d)
+        m_wetting = wetting * (E_w - (E_w - mo) / 10 ** k_w)
         m_no_change = no_change * mo
 
         m = m_drying + m_wetting + m_no_change
