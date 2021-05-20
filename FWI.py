@@ -241,6 +241,8 @@ class FWICalculator:
         mo = mo.min(ee.Image(250.0))
 
         # Drying / Wetting Phase
+
+        #Equilibrium drying/wetting moisture content
         E_d = 0.942 * self.rhum ** 0.679 + \
                 11.0 * math.exp(1) ** ((self.rhum - 100) / 10) + \
                 0.18 * (21.1 - self.temp) * \
@@ -251,10 +253,12 @@ class FWICalculator:
                 0.18 * (21.1 - self.temp) * \
                 (1 - math.exp(1) ** (-0.115 * self.rhum))
 
+        # Intermediary for wetting rate
         k_1 = 0.424 * (1 - ((100 - self.rhum) / 100) ** 1.7) + \
                 0.0694 * self.wind ** 0.5 * (1 - ((100 - self.rhum)/100) ** 8)
 
-        k_o = 0.424 * (1 - ((100 - self.rhum) / 100) ** 1.7) + \
+        # Intermediary for drying rate
+        k_o = 0.424 * (1 - (self.rhum / 100) ** 1.7) + \
                 0.0694 * self.wind ** 0.5 * (1 - (self.rhum / 100) ** 8)
 
         # Wetting and drying rate
