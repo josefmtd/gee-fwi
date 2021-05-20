@@ -224,16 +224,16 @@ class FWICalculator:
 
         r_f = rain * (self.rain - 0.5)
 
-        comp = m_o.gt(150.0)
-        normal = comp.Not()
+        comp = rain * m_o.gt(150.0)
+        normal = rain * comp.Not()
 
         # The effect of rain to moisture content
         delta_m_rf = 42.5 * math.exp(1) ** (-100.0 / (251 - m_o)) * \
                         (1 - math.exp(1) ** (-6.93 / r_f))
         corrective = 0.0015 * (m_o - 150.0) ** 2 * r_f ** 0.5
 
-        delta_m = comp * (delta_m_rf + corrective) * r_f + \
-                    normal * (delta_m_rf) * r_f + \
+        delta_m = comp * (delta_m_rf * r_f  + corrective) + \
+                    normal * (delta_m_rf * r_f) + \
                     negligible_rain * 0.0
 
         # Moisture content after raining phase
