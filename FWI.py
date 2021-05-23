@@ -6,41 +6,42 @@ import eemont
 
 class FWICalculator:
     """
-    FWI Calculator based on the Canadian Fire Weather Index System using
-    Google Earth Engine
+    FWI Calculator based on the Canadian Fire Weather Index System
+    using Google Earth Engine
 
     ...
 
     Attributes
     ----------
     temp : ee.Image
-        temperature in degree Celsius observed in noon
+        temperature in degree Celsius observed at noon
     rhum : ee.Image
-        relative humidity in percent observed in noon
+        relative humidity in percent observed at noon
     wind : ee.Image
-        wind speed in kph observed in noon
+        wind speed in kph observed at noon
     rain : ee.Image
-        total precipitation in mm in the past 24 hours, observed in noon
+        total precipitation from past 24 hours in mm observed at noon
     """
 
-    def __init__(self, date_time, temp, rhum, wind, rain):
+    def __init__(self, date, temp, rhum, wind, rain):
         """
-        Constructs all the necessary attributes for the FWICalculator object.
+        Constructs all the necessary attributes for the
+        FWICalculator object.
 
         Parameters
         ----------
-        date_time : datetime.datetime
+        date_time : datetime.date
             the current date of observation
         temp : ee.Image
-            temperature in degree Celsius observed in noon
+            temperature in degree Celsius observed at noon
         rhum : ee.Image
-            relative humidity in percent observed in noon
+            relative humidity in percent observed at noon
         wind : ee.Image
-            wind speed in kph observed in noon
+            wind speed in kph observed at noon
         rain : ee.Image
-            total precipitation in mm in the past 24 hours, observed in noon
+            total precipitation past 24 hours in mm observed at noon
         """
-        self.date_time = date_time
+        self.date = date
         self.temp = temp
         self.rhum = rhum
         self.wind = wind
@@ -72,7 +73,7 @@ class FWICalculator:
         -------
         None
         """
-        self.ffmc_prev = ee.Image(ffmc_prev).clip(self.bounds)
+        self.ffmc_prev = ee.Image(ffmc_prev)
 
     def set_initial_dmc(self, dmc_prev):
         """
@@ -86,7 +87,7 @@ class FWICalculator:
         -------
         None
         """
-        self.dmc_prev = ee.Image(dmc_prev).clip(self.bounds)
+        self.dmc_prev = ee.Image(dmc_prev)
 
     def set_initial_dc(self, dc_prev):
         """
@@ -100,93 +101,59 @@ class FWICalculator:
         -------
         None
         """
-        self.dc_prev = ee.Image(dc_prev).clip(self.bounds)
+        self.dc_prev = ee.Image(dc_prev)
 
-    def update_daily_parameters(self, date_time, temp, rhum, wind, rain):
-        """
-        Updates the daily parameters required to calculate FWI
-
-        Parameters
-        ----------
-        date_time : datetime.datetime
-            the current date of observation
-        temp : ee.Image
-            temperature in degree Celsius observed in noon
-        rhum : ee.Image
-            relative humidity in percent observed in noon
-        wind : ee.Image
-            wind speed in kph observed in noon
-        rain : ee.Image
-            total precipitation in mm in the past 24 hours, observed in noon
-        """
-
-        self.ffmc_prev = self.ffmc
-        self.dmc_prev = self.dmc
-        self.dc_prev = self.dc
-        self.date_time_prev = self.date_time
-
-        self.date_time = date_time
-        self.temp = temp
-        self.rhum = rhum
-        self.wind = wind
-        self.rain = rain
-
-        delattr(self, 'ffmc')
-        delattr(self, 'dmc')
-        delattr(self, 'dc')
-        delattr(self, 'isi')
-        delattr(self, 'bui')
-        delattr(self, 'fwi')
-
-    def update_drying_factor(self):
+    def __update_drying_factor(self):
         """
         Updates the drying factor if the month is changed
         """
         try:
-            cal = (self.date_time.month - self.date_time_prev.month) > 0
+            cal = (self.date- self.date_prev).month > 0
         except AttributeError:
             cal = 1
 
         if cal == 1:
-            self.calculate_drying_factor()
+            self.__calculate_drying_factor()
 
-    def update_day_length(self):
+    def __update_day_length(self):
         """
         Updates the day length if the month is changed
         """
         try:
-            cal = (self.date_time.month - self.date_time_prev.month) > 0
+            cal = (self.date - self.date_prev).month > 0
         except AttributeError:
             cal = 1
 
         if cal == 1:
-            self.calculate_day_length()
+            self.__calculate_day_length()
 
-    def calculate_drying_factor(self):
+    def __calculate_drying_factor(self):
         '''
-        Calculates an ee.Image containing the drying factor with bounds and date
+        Calculates an ee.Image containing the drying factor
+        with bounds and date
         '''
 
         latitude = ee.Image.pixelLonLat() \
-                    .select('latitude').clip(self.bounds)
+                    .select('latitude')
 
-        LfN = [-1.6, -1.6, -1.6, 0.9, 3.8, 5.8, 6.4, 5.0, 2.4, 0.4, -1.6, -1.6]
-        LfS = [6.4, 5.0, 2.4, 0.4, -1.6, -1.6, -1.6, -1.6, -1.6, 0.9, 3.8, 5.8]
+        LfN = [-1.6, -1.6, -1.6, 0.9, 3.8, 5.8, \
+               6.4, 5.0, 2.4, 0.4, -1.6, -1.6]
+        LfS = [6.4, 5.0, 2.4, 0.4, -1.6, -1.6, \
+               -1.6, -1.6, -1.6, 0.9, 3.8, 5.8]
 
         mask_1 = latitude.gt(0)
         mask_2 = latitude.lte(0)
 
-        factor_1 = mask_1 * ee.Image(LfN[self.date_time.month - 1])
-        factor_2 = mask_2 * ee.Image(LfS[self.date_time.month - 1])
+        factor_1 = mask_1 * ee.Image(LfN[self.date.month - 1])
+        factor_2 = mask_2 * ee.Image(LfS[self.date.month - 1])
 
         self.drying_factor = factor_1 + factor_2
 
-    def calculate_day_length(self):
+    def __calculate_day_length(self):
         '''
-        Calculates an ee.Image containing an  approximation of the day length
-        with bounds and date
+        Calculates an ee.Image containing an approximation
+        of the day length with bounds and date
         '''
-
         DayLength46N = [ 6.5,  7.5,  9.0, 12.8, 13.9, 13.9, \
                         12.4, 10.9,  9.4,  8.0,  7.0,  6.0]
         DayLength20N = [ 7.9,  8.4,  8.9,  9.5,  9.9, 10.2, \
@@ -197,18 +164,18 @@ class FWICalculator:
                         6.5,  7.4,  8.7, 10.0, 11.2, 11.8]
 
         latitude = ee.Image.pixelLonLat() \
-                    .select('latitude').clip(self.bounds)
+                    .select('latitude')
 
         mask_1 = latitude.lte(90.0) * latitude.gt(33.0)
         mask_2 = latitude.lte(33.0) * latitude.gt(0)
         mask_3 = latitude.lte(0) * latitude.gt(-30.0)
         mask_4 = latitude.lte(-30.0) * latitude.gt(-90.0)
 
-        length_1 = mask_1 * ee.Image(DayLength46N[self.date_time.month - 1])
-        length_3 = mask_3 * ee.Image(DayLength20S[self.date_time.month - 1])
-        length_2 = mask_2 * ee.Image(DayLength20N[self.date_time.month - 1])
-        length_4 = mask_4 * ee.Image(DayLength40S[self.date_time.month - 1])
-
+        index = self.date.month - 1
+        length_1 = mask_1 * ee.Image(DayLength46N[index])
+        length_2 = mask_2 * ee.Image(DayLength20N[index])
+        length_3 = mask_3 * ee.Image(DayLength20S[index])
+        length_4 = mask_4 * ee.Image(DayLength40S[index])
         self.day_length = length_1 + length_2 + length_3 + length_4
 
     def calculate_fine_fuel_moisture_code(self):
@@ -216,7 +183,8 @@ class FWICalculator:
         Calculates the Fine Fuel Moisture Code
         """
         # Get the moisture content from previous day (m_o)
-        m_o = 147.2 * (101.0 - self.ffmc_prev) / (59.5 + self.ffmc_prev)
+        m_o = 147.2 * (101.0 - self.ffmc_prev) / \
+            (59.5 + self.ffmc_prev)
 
         # Raining Phase
         rain = self.rain.gt(0.5)
@@ -229,7 +197,7 @@ class FWICalculator:
 
         # The effect of rain to moisture content
         delta_m_rf = 42.5 * math.exp(1) ** (-100.0 / (251 - m_o)) * \
-                        (1 - math.exp(1) ** (-6.93 / r_f))
+            (1 - math.exp(1) ** (-6.93 / r_f))
         corrective = 0.0015 * (m_o - 150.0) ** 2 * r_f ** 0.5
 
         delta_m = comp * (delta_m_rf * r_f  + corrective) + \
@@ -241,31 +209,28 @@ class FWICalculator:
         mo = mo.min(ee.Image(250.0))
 
         # Drying / Wetting Phase
-
-        #Equilibrium drying/wetting moisture content
         E_d = 0.942 * self.rhum ** 0.679 + \
-                11.0 * math.exp(1) ** ((self.rhum - 100) / 10) + \
-                0.18 * (21.1 - self.temp) * \
-                (1 - math.exp(1) ** (-0.115 * self.rhum))
+            11.0 * math.exp(1) ** ((self.rhum - 100) / 10) + \
+            0.18 * (21.1 - self.temp) * \
+            (1 - math.exp(1) ** (-0.115 * self.rhum))
 
         E_w = 0.618 * self.rhum ** 0.753 + \
-                10.0 * math.exp(1) ** ((self.rhum - 100) / 10) + \
-                0.18 * (21.1 - self.temp) * \
-                (1 - math.exp(1) ** (-0.115 * self.rhum))
+            10.0 * math.exp(1) ** ((self.rhum - 100) / 10) + \
+            0.18 * (21.1 - self.temp) * \
+            (1 - math.exp(1) ** (-0.115 * self.rhum))
 
-        # Intermediary for wetting rate
         k_1 = 0.424 * (1 - ((100 - self.rhum) / 100) ** 1.7) + \
-                0.0694 * self.wind ** 0.5 * (1 - ((100 - self.rhum)/100) ** 8)
+            0.0694 * self.wind ** 0.5 * \
+            (1 - ((100 - self.rhum)/100) ** 8)
 
-        # Intermediary for drying rate
-        k_o = 0.424 * (1 - (self.rhum / 100) ** 1.7) + \
-                0.0694 * self.wind ** 0.5 * (1 - (self.rhum / 100) ** 8)
+        k_o = 0.424 * (1 - ((100 - self.rhum) / 100) ** 1.7) + \
+            0.0694 * self.wind ** 0.5 * (1 - (self.rhum / 100) ** 8)
 
         # Wetting and drying rate
         k_d = k_o * 0.581 * math.exp(1) ** (0.0365 * self.temp)
         k_w = k_1 * 0.581 * math.exp(1) ** (0.0365 * self.temp)
 
-        # Calculate the drying/wetting phase based on the moisture content
+        # Calculate the drying/wetting phase based on moisture content
         drying = mo.gt(E_d)
         wetting = mo.lt(E_w)
         no_change = (drying + wetting).Not()
@@ -276,7 +241,6 @@ class FWICalculator:
 
         m = m_drying + m_wetting + m_no_change
         self.ffmc = 59.5 * (250.0 - m) / (147.2 + m)
-        self.ffmc.rename('FFMC')
 
     def calculate_duff_moisture_code(self):
         """
@@ -291,7 +255,8 @@ class FWICalculator:
         r_e = rain * 0.92 * self.rain - 1.27
 
         piece_wise_1 = self.dmc_prev.lte(33.0)
-        piece_wise_2 = self.dmc_prev.lte(65.0) * self.dmc_prev.gt(33.0)
+        piece_wise_2 = self.dmc_prev.lte(65.0) * \
+            self.dmc_prev.gt(33.0)
         piece_wise_3 = self.dmc_prev.gt(65.0)
 
         b_1 = 100.0 / (0.5 + 0.3 * self.dmc_prev)
@@ -318,11 +283,11 @@ class FWICalculator:
         log_drying_rate = self.temp.gt(-1.1)
         negligible = log_drying_rate.Not()
 
-        # Get day length
-        self.calculate_day_length()
+        self.__update_day_length()
 
-        K = log_drying_rate * 1.894 * (self.temp + 1.1) * (100.0 - self.rhum) * \
-                self.day_length * 1e-6 + negligible * 0.0
+        K = log_drying_rate * 1.894 * (self.temp + 1.1) \
+            * (100.0 - self.rhum) * self.day_length * 1e-6 \
+            + negligible * 0.0
 
         self.dmc = P_prev + 100.0 * K
 
@@ -349,10 +314,10 @@ class FWICalculator:
         drying_phase = self.temp.gt(-2.8)
         negligible = drying_phase.Not()
 
-        self.calculate_drying_factor()
+        self.__update_drying_factor()
 
-        V = drying_phase * (0.36 * (self.temp + 2.8) + self.drying_factor) + \
-            negligible_rain * self.drying_factor
+        V = drying_phase * (0.36 * (self.temp + 2.8) + \
+            self.drying_factor) + negligible_rain * self.drying_factor
 
         self.dc = D_prev + 0.5 * V
 
@@ -386,9 +351,10 @@ class FWICalculator:
         finally:
             not_cond = cond.Not()
 
-        self.bui = cond * (0.8 * self.dmc * self.dc / (self.dmc + 0.4 * self.dc)) \
-                    + not_cond * (self.dmc - (1.0 - 0.8 * self.dc / \
-                    (self.dmc + 0.4 * self.dc)) * (0.92 + (0.0114 * self.dmc) ** 1.7))
+        self.bui = cond * (0.8 * self.dmc * self.dc / \
+            (self.dmc + 0.4 * self.dc)) + not_cond * (self.dmc - \
+            (1.0 - 0.8 * self.dc / (self.dmc + 0.4 * self.dc)) * \
+            (0.92 + (0.0114 * self.dmc) ** 1.7))
 
     def calculate_fire_weather_index(self):
         """
@@ -423,104 +389,121 @@ class FWICalculator:
 
         self.fwi = dn_use_log * B + use_log * S
 
-    def get_fire_weather_index(self):
+    def preprocess(self, scale):
         """
-        Calculate all the FWI System codes and indices
+        Resample the rasters to a scale
+
+        Parameters
+        ----------
+        scale: int
+            the scale in meters
+        Returns
+        -------
+        None
+        """
+        self.ffmc = self.ffmc.resample('bicubic') \
+            .reproject(crs = 'EPSG:4326', scale = scale) \
+            .rename('FFMC')
+
+        self.dmc = self.dmc.resample('bicubic') \
+            .reproject(crs = 'EPSG:4326', scale = scale) \
+            .rename('DMC')
+
+        self.dc = self.dc.resample('bicubic') \
+            .reproject(crs = 'EPSG:4326', scale = scale) \
+            .rename('DC')
+
+        self.isi = self.isi.resample('bicubic') \
+            .reproject(crs = 'EPSG:4326', scale = scale) \
+            .rename('ISI')
+
+        self.bui = self.bui.resample('bicubic') \
+            .reproject(crs = 'EPSG:4326', scale = scale) \
+            .rename('BUI')
+
+        self.fwi = self.fwi.resample('bicubic') \
+            .reproject(crs = 'EPSG:4326', scale = scale) \
+            .rename('FWI')
+
+    def __export_geotiff(self, image, prefix, bucket):
+        """
+        Export an image as GeoTIFF
+
+        Parameters
+        ----------
+        image : ee.Image
+            Image to be exported
+        prefix : str
+            Prefix for file_name
 
         Returns
         -------
-        fwi : ee.Image
-            Fire Weather Index of the current date
+        task : ee.batch.Export.task
         """
-        try:
-            self.fwi = self.fwi.rename('FWI')
-        except AttributeError:
-            self.calculate_fire_weather_index()
-            self.fwi = self.fwi.rename('FWI')
-        finally:
-            return self.fwi
+        date_string = f'{self.date.year}' + \
+            f'_{str(self.date.month).zfill(2)}' + \
+            f'_{str(self.date.day).zfill(2)}'
+        file_name = f'{prefix}_{date_string}'
 
-    def get_buildup_index(self):
-        """
-        Calculate the buildup index
+        task = ee.batch.Export.image.toCloudStorage(**{
+            'image' : image,
+            'description' : file_name,
+            'bucket' : bucket,
+            'region' : self.bounds,
+            'fileFormat' : 'GeoTIFF',
+            'scale' : 1000,
+            'maxPixels' : 10e10
+        })
 
-        Returns
-        -------
-        bui : ee.Image
-            Buildup Index of the current date
-        """
-        try:
-            self.bui = self.bui.rename('BUI')
-        except AttributeError:
-            self.calculate_buildup_index()
-            self.bui = self.bui.rename('BUI')
-        finally:
-            return self.bui
+        task.start()
+        return task
 
-    def get_initial_spread_index(self):
+    def export_codes(self, bucket):
         """
-        Calculate the initial spread index
+        Export all codes and indices calculated
+        """
+        tasks = []
 
-        Returns
-        -------
-        isi : ee.Image
-            Initial Spread Index of the current date
-        """
-        try:
-            self.isi = self.isi.rename('ISI')
-        except AttributeError:
-            self.calculate_initial_spread_index()
-            self.isi = self.isi.rename('ISI')
-        finally:
-            return self.isi
+        tasks.append(self.__export_geotiff(self.ffmc, 'FFMC', bucket))
+        tasks.append(self.__export_geotiff(self.dmc, 'DMC', bucket))
+        tasks.append(self.__export_geotiff(self.dc, 'DC', bucket))
+        tasks.append(self.__export_geotiff(self.isi, 'ISI', bucket))
+        tasks.append(self.__export_geotiff(self.bui, 'BUI', bucket))
+        tasks.append(self.__export_geotiff(self.fwi, 'FWI', bucket))
 
-    def get_fine_fuel_moisture_code(self):
-        """
-        Calculate the Fine Fuel Moisture Code
+        return tasks
 
-        Returns
-        -------
-        ffmc : ee.Image
-            Fine Fuel Moisture Code of the current date
+    def update_daily_parameters(self, date, temp, rhum, wind, rain):
         """
-        try:
-            self.ffmc = self.ffmc.rename('FFMC')
-        except AttributeError:
-            self.calculate_fine_fuel_moisture_code()
-            self.ffmc = self.ffmc.rename('FFMC')
-        finally:
-            return self.ffmc
+        Updates the daily parameters required to calculate FWI
 
-    def get_duff_moisture_code(self):
+        Parameters
+        ----------
+        date : datetime.date
+            the current date of observation
+        temp : ee.Image
+            temperature in degree Celsius observed at noon
+        rhum : ee.Image
+            relative humidity in percent observed at noon
+        wind : ee.Image
+            wind speed in kph observed at noon
+        rain : ee.Image
+            total precipitation past 24 hours in mm observed at noon
         """
-        Calculates the Duff Moisture Code
+        self.ffmc_prev = self.ffmc
+        self.dmc_prev = self.dmc
+        self.dc_prev = self.dc
+        self.date_prev = self.date
 
-        Returns
-        -------
-        dmc : ee.Image
-            Duff Moisture Code of the current date
-        """
-        try:
-            self.dmc = self.dmc.rename('DMC')
-        except AttributeError:
-            self.calculate_duff_moisture_code()
-            self.dmc = self.dmc.rename('DMC')
-        finally:
-            return self.dmc
+        self.date = date
+        self.temp = temp
+        self.rhum = rhum
+        self.wind = wind
+        self.rain = rain
 
-    def get_drought_code(self):
-        """
-        Calculates the Drought Code
-
-        Returns
-        -------
-        dc : ee.Image
-            Drought Code of the current date
-        """
-        try:
-            self.dc = self.dc.rename('DC')
-        except AttributeError:
-            self.calculate_drought_code()
-            self.dc = self.dc.rename('DC')
-        finally:
-            return self.dc
+        delattr(self, 'ffmc')
+        delattr(self, 'dmc')
+        delattr(self, 'dc')
+        delattr(self, 'isi')
+        delattr(self, 'bui')
+        delattr(self, 'fwi')
