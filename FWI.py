@@ -425,7 +425,7 @@ class FWICalculator:
             .reproject(crs = 'EPSG:4326', scale = scale) \
             .rename('FWI')
 
-    def __export_geotiff(self, image, prefix, bucket):
+    def __export_geotiff(self, image, scale, prefix, suffix, bucket):
         """
         Export an image as GeoTIFF
 
@@ -443,33 +443,33 @@ class FWICalculator:
         date_string = f'{self.date.year}' + \
             f'_{str(self.date.month).zfill(2)}' + \
             f'_{str(self.date.day).zfill(2)}'
-        file_name = f'{prefix}_{date_string}'
-
+        file_name = f'{prefix}_{date_string}_{suffix}'
+        
         task = ee.batch.Export.image.toCloudStorage(**{
             'image' : image,
             'description' : file_name,
             'bucket' : bucket,
             'region' : self.bounds,
+            'scale' : scale,
             'fileFormat' : 'GeoTIFF',
-            'scale' : 1000,
             'maxPixels' : 10e10
         })
 
         task.start()
         return task
 
-    def export_codes(self, bucket):
+    def export_codes(self, scale, prefix, bucket):
         """
         Export all codes and indices calculated
         """
         tasks = []
 
-        tasks.append(self.__export_geotiff(self.ffmc, 'FFMC', bucket))
-        tasks.append(self.__export_geotiff(self.dmc, 'DMC', bucket))
-        tasks.append(self.__export_geotiff(self.dc, 'DC', bucket))
-        tasks.append(self.__export_geotiff(self.isi, 'ISI', bucket))
-        tasks.append(self.__export_geotiff(self.bui, 'BUI', bucket))
-        tasks.append(self.__export_geotiff(self.fwi, 'FWI', bucket))
+        tasks.append(self.__export_geotiff(self.ffmc, scale, prefix, 'FFMC', bucket))
+        tasks.append(self.__export_geotiff(self.dmc, scale, prefix, 'DMC', bucket))
+        tasks.append(self.__export_geotiff(self.dc, scale, prefix, 'DC', bucket))
+        tasks.append(self.__export_geotiff(self.isi, scale, prefix, 'ISI', bucket))
+        tasks.append(self.__export_geotiff(self.bui, scale, prefix, 'BUI', bucket))
+        tasks.append(self.__export_geotiff(self.fwi, scale, prefix, 'FWI', bucket))
 
         return tasks
 
