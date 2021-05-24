@@ -197,7 +197,7 @@ class FWI_ERA5:
         total precipitation in mm in the past 24 hours, observed in noon
     """
 
-    def __init__(self, date_time, bounds, use_gsmap):
+    def __init__(self, date, bounds):
         """
         Constructs all the necessary attributes to get the raster data
         observed at a certain datetime inside a boundary
@@ -209,11 +209,8 @@ class FWI_ERA5:
         bounds : ee.Geometry
             the boundary used to limit the ee.Image file
         """
-        self.date_time = date_time
+        self.date = date
         self.bounds = bounds
-        self.use_gsmap = use_gsmap
-
-        self.dataset = ee.ImageCollection('ECMWF/ERA5_LAND/HOURLY')
         self.__get_fwi_inputs()
 
     def __calculate_temperature(self):
@@ -269,12 +266,12 @@ class FWI_ERA5:
             self.date.day, hour = 5)
         start_datetime = utc_datetime - timedelta(days = 1)
 
-        image_id = f'{self.date.year}' +
-                    f'{str(self.date.month).zfill(2)}' +
+        image_id = f'{self.date.year}' + \
+                    f'{str(self.date.month).zfill(2)}' + \
                     f'{str(self.date.day).zfill(2)}T05'
 
-        self.era5_rain = ee.ImageCollection('ECMWF/ERA5_LAND/HOURLY')
-            .filterDate(start_datetime.isoformat(),
+        self.era5_rain = ee.ImageCollection('ECMWF/ERA5_LAND/HOURLY') \
+            .filterDate(start_datetime.isoformat(), \
                 utc_datetime.isoformat())
 
         self.era5 = ee.Image(f'ECMWF/ERA5_LAND/HOURLY/{image_id}')
@@ -323,37 +320,37 @@ class FWI_ERA5:
         self.rain = self.rain.resample('bicubic') \
             .reproject(crs = 'EPSG:4326', scale = scale)
 
-    def __export_geotiff(self, image, prefix, bucket):
+    def __export_geotiff(self, image, scale, prefix, suffix, bucket):
         """
         Export image as GeoTIFF
         """
         date_string = f'{self.date.year}' + \
             f'_{str(self.date.month).zfill(2)}' + \
             f'_{str(self.date.day).zfill(2)}'
-        file_name = f'{prefix}_{date_string}'
-
+        file_name = f'{prefix}_{date_string}_{suffix}'
+        
         task = ee.batch.Export.image.toCloudStorage(**{
             'image' : image,
             'description' : file_name,
             'bucket' : bucket,
             'region' : self.bounds,
             'fileFormat' : 'GeoTIFF',
-            'scale' : 1000,
+            'scale' : scale,
             'maxPixels' : 10e10
         })
 
         task.start()
         return task
 
-    def export_inputs(self, bucket):
+    def export_inputs(self, scale, prefix, bucket):
         """
         Export all inputs as GeoTIFF to a Google Cloud Storage Bucket
         """
         tasks = []
 
-        tasks.append(self.__export_geotiff(self.temp, 'TEMP', bucket))
-        tasks.append(self.__export_geotiff(self.rhum, 'RHUM', bucket))
-        tasks.append(self.__export_geotiff(self.wind, 'WIND', bucket))
-        tasks.append(self.__export_geotiff(self.rain, 'RAIN', bucket))
+        tasks.append(self.__export_geotiff(self.temp, scale, prefix, 'T', bucket))
+        tasks.append(self.__export_geotiff(self.rhum, scale, prefix, 'H', bucket))
+        tasks.append(self.__export_geotiff(self.wind, scale, prefix, 'W', bucket))
+        tasks.append(self.__export_geotiff(self.rain, scale, prefix, 'R', bucket))
 
         return tasks
