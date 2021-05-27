@@ -102,7 +102,7 @@ class FWI_GFS_GSMAP:
         self.__calculate_wind()
         self.__calculate_rain_gsmap()
 
-    def preprocess(self, scale):
+    def preprocess(self, crs, scale):
         """
         Resample the rasters to a scale
 
@@ -115,16 +115,16 @@ class FWI_GFS_GSMAP:
         None
         """
         self.temp = self.temp.resample('bicubic') \
-            .reproject(crs = 'EPSG:4326', scale = scale)
+            .reproject(crs = crs, scale = scale)
 
         self.rhum = self.rhum.resample('bicubic') \
-            .reproject(crs = 'EPSG:4326', scale = scale)
+            .reproject(crs = crs, scale = scale)
 
         self.wind = self.wind.resample('bicubic') \
-            .reproject(crs = 'EPSG:4326', scale = scale)
+            .reproject(crs = crs, scale = scale)
 
         self.rain = self.rain.resample('bicubic') \
-            .reproject(crs = 'EPSG:4326', scale = scale)
+            .reproject(crs = crs, scale = scale)
 
     def __export_geotiff(self, image, prefix, bucket):
         """
@@ -328,7 +328,7 @@ class FWI_ERA5:
             f'_{str(self.date.month).zfill(2)}' + \
             f'_{str(self.date.day).zfill(2)}'
         file_name = f'{prefix}_{date_string}_{suffix}'
-        
+
         task = ee.batch.Export.image.toCloudStorage(**{
             'image' : image,
             'description' : file_name,
