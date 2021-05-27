@@ -389,7 +389,7 @@ class FWICalculator:
 
         self.fwi = dn_use_log * B + use_log * S
 
-    def preprocess(self, scale):
+    def preprocess(self, crs, scale):
         """
         Resample the rasters to a scale
 
@@ -401,31 +401,25 @@ class FWICalculator:
         -------
         None
         """
-        self.ffmc = self.ffmc.resample('bicubic') \
-            .reproject(crs = 'EPSG:4326', scale = scale) \
+        self.ffmc = self.ffmc.reproject(crs = crs, scale = scale) \
             .rename('FFMC')
 
-        self.dmc = self.dmc.resample('bicubic') \
-            .reproject(crs = 'EPSG:4326', scale = scale) \
+        self.dmc = self.dmc.reproject(crs = crs, scale = scale) \
             .rename('DMC')
 
-        self.dc = self.dc.resample('bicubic') \
-            .reproject(crs = 'EPSG:4326', scale = scale) \
+        self.dc = self.dc.reproject(crs = crs, scale = scale) \
             .rename('DC')
 
-        self.isi = self.isi.resample('bicubic') \
-            .reproject(crs = 'EPSG:4326', scale = scale) \
+        self.isi = self.isi.reproject(crs = crs, scale = scale) \
             .rename('ISI')
 
-        self.bui = self.bui.resample('bicubic') \
-            .reproject(crs = 'EPSG:4326', scale = scale) \
+        self.bui = self.bui.reproject(crs = crs, scale = scale) \
             .rename('BUI')
 
-        self.fwi = self.fwi.resample('bicubic') \
-            .reproject(crs = 'EPSG:4326', scale = scale) \
+        self.fwi = self.fwi.reproject(crs = crs, scale = scale) \
             .rename('FWI')
 
-    def __export_geotiff(self, image, scale, prefix, suffix, bucket):
+    def __export_geotiff(self, image, prefix, bucket):
         """
         Export an image as GeoTIFF
 
@@ -435,6 +429,8 @@ class FWICalculator:
             Image to be exported
         prefix : str
             Prefix for file_name
+        bucket : str
+            Name of the GCS bucket
 
         Returns
         -------
@@ -444,7 +440,7 @@ class FWICalculator:
             f'_{str(self.date.month).zfill(2)}' + \
             f'_{str(self.date.day).zfill(2)}'
         file_name = f'{prefix}_{date_string}_{suffix}'
-        
+
         task = ee.batch.Export.image.toCloudStorage(**{
             'image' : image,
             'description' : file_name,
