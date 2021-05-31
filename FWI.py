@@ -13,6 +13,8 @@ class FWICalculator:
 
     Attributes
     ----------
+    date: datetime.date
+        the observation date
     temp : ee.Image
         temperature in degree Celsius observed at noon
     rhum : ee.Image
@@ -30,8 +32,8 @@ class FWICalculator:
 
         Parameters
         ----------
-        date_time : datetime.date
-            the current date of observation
+        date : datetime.date
+            the observation date
         temp : ee.Image
             temperature in degree Celsius observed at noon
         rhum : ee.Image
@@ -67,7 +69,7 @@ class FWICalculator:
 
         Parameters
         ----------
-        ffmc : ee.Image
+        ffmc : ee.Image or int
             the initial value for FFMC
         Returns
         -------
@@ -81,7 +83,7 @@ class FWICalculator:
 
         Parameters
         ----------
-        dmc : ee.Image
+        dmc : ee.Image or int
             the initial value for DMC
         Returns
         -------
@@ -95,7 +97,7 @@ class FWICalculator:
 
         Parameters
         ----------
-        dc : ee.Image
+        dc : ee.Image or int
             the initial value for DC
         Returns
         -------
