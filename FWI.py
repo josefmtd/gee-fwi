@@ -319,7 +319,7 @@ class FWICalculator:
         self.__update_drying_factor()
 
         V = drying_phase * (0.36 * (self.temp + 2.8) + \
-            self.drying_factor) + negligible_rain * self.drying_factor
+            self.drying_factor) + negligible * self.drying_factor
 
         self.dc = D_prev + 0.5 * V
 
