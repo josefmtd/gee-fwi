@@ -108,6 +108,8 @@ class FWI_GFS_GSMAP:
 
         Parameters
         ----------
+        crs: string
+            EPSG code in string e.g. 'EPSG:4326'
         scale: int
             the scale in meters
         Returns
@@ -296,12 +298,14 @@ class FWI_ERA5:
         self.date = date
         self.__get_fwi_inputs()
 
-    def preprocess(self, scale):
+    def preprocess(self, crs, scale):
         """
         Resample the rasters to a scale
 
         Parameters
         ----------
+        crs: string
+            EPSG code in string e.g. 'EPSG:4326'
         scale: int
             the scale in meters
         Returns
@@ -309,16 +313,16 @@ class FWI_ERA5:
         None
         """
         self.temp = self.temp.resample('bicubic') \
-            .reproject(crs = 'EPSG:4326', scale = scale)
+            .reproject(crs = crs, scale = scale)
 
         self.rhum = self.rhum.resample('bicubic') \
-            .reproject(crs = 'EPSG:4326', scale = scale)
+            .reproject(crs = crs, scale = scale)
 
         self.wind = self.wind.resample('bicubic') \
-            .reproject(crs = 'EPSG:4326', scale = scale)
+            .reproject(crs = crs, scale = scale)
 
         self.rain = self.rain.resample('bicubic') \
-            .reproject(crs = 'EPSG:4326', scale = scale)
+            .reproject(crs = crs, scale = scale)
 
     def __export_geotiff(self, image, scale, prefix, suffix, bucket):
         """
