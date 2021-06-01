@@ -421,7 +421,7 @@ class FWICalculator:
         self.fwi = self.fwi.reproject(crs = crs, scale = scale) \
             .rename('FWI')
 
-    def __export_geotiff(self, image, prefix, bucket):
+    def __export_geotiff(self, image, scale, prefix, suffix, bucket):
         """
         Export an image as GeoTIFF
 
@@ -431,8 +431,12 @@ class FWICalculator:
             Image to be exported
         prefix : str
             Prefix for file_name
+        suffix : str
+            Suffix for file_name
         bucket : str
             Name of the GCS bucket
+        scale : int
+            pixel scale in meters
 
         Returns
         -------
