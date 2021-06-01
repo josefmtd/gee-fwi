@@ -387,7 +387,7 @@ class FWICalculator:
         dn_use_log = use_log.Not()
 
         B_log = use_log * B.log()
-        S = math.exp(1) ** (2.72 * 0.434 * B_log) ** 0.647
+        S = math.exp(1) ** ((2.72 * 0.434 * B_log) ** 0.647)
 
         self.fwi = dn_use_log * B + use_log * S
 
