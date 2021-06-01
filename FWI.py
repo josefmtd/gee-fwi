@@ -45,9 +45,9 @@ class FWICalculator:
         """
         self.date = date
         self.temp = temp
-        self.rhum = rhum
-        self.wind = wind
-        self.rain = rain
+        self.rhum = rhum.min(ee.Image(100))
+        self.wind = wind.max(ee.Image(0))
+        self.rain = rain.max(ee.Image(0))
 
     def set_boundary(self, bounds):
         """
@@ -431,12 +431,8 @@ class FWICalculator:
             Image to be exported
         prefix : str
             Prefix for file_name
-        suffix : str
-            Suffix for file_name
         bucket : str
             Name of the GCS bucket
-        scale : int
-            pixel scale in meters
 
         Returns
         -------
@@ -499,9 +495,9 @@ class FWICalculator:
 
         self.date = date
         self.temp = temp
-        self.rhum = rhum
-        self.wind = wind
-        self.rain = rain
+        self.rhum = rhum.min(ee.Image(100))
+        self.wind = wind.max(ee.Image(0))
+        self.rain = rain.max(ee.Image(0))
 
         delattr(self, 'ffmc')
         delattr(self, 'dmc')
