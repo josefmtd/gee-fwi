@@ -102,40 +102,38 @@ class FWI_GFS_GSMAP:
         self.__calculate_wind()
         self.__calculate_rain_gsmap()
 
-    def preprocess(self, crs, scale):
+    def preprocess(self, interpolation, crs, scale):
         """
         Resample the rasters to a scale
 
         Parameters
         ----------
-        crs: string
-            EPSG code in string e.g. 'EPSG:4326'
         scale: int
             the scale in meters
         Returns
         -------
         None
         """
-        self.temp = self.temp.resample('bicubic') \
+        self.temp = self.temp.resample(interpolation) \
             .reproject(crs = crs, scale = scale)
 
-        self.rhum = self.rhum.resample('bicubic') \
+        self.rhum = self.rhum.resample(interpolation) \
             .reproject(crs = crs, scale = scale)
 
-        self.wind = self.wind.resample('bicubic') \
+        self.wind = self.wind.resample(interpolation) \
             .reproject(crs = crs, scale = scale)
 
-        self.rain = self.rain.resample('bicubic') \
+        self.rain = self.rain.resample(interpolation) \
             .reproject(crs = crs, scale = scale)
 
-    def __export_geotiff(self, image, prefix, bucket):
+    def __export_geotiff(self, image, scale, prefix, suffix, bucket):
         """
         Export image as GeoTIFF
         """
         date_string = f'{self.date.year}' + \
             f'_{str(self.date.month).zfill(2)}' + \
             f'_{str(self.date.day).zfill(2)}'
-        file_name = f'{prefix}_{date_string}'
+        file_name = f'{prefix}_{date_string}_{suffix}'
 
         task = ee.batch.Export.image.toCloudStorage(**{
             'image' : image,
@@ -143,23 +141,23 @@ class FWI_GFS_GSMAP:
             'bucket' : bucket,
             'region' : self.bounds,
             'fileFormat' : 'GeoTIFF',
-            'scale' : 1000,
+            'scale' : scale,
             'maxPixels' : 10e10
         })
 
         task.start()
         return task
 
-    def export_inputs(self, bucket):
+    def export_inputs(self, scale, prefix, bucket):
         """
         Export all inputs as GeoTIFF to a Google Cloud Storage Bucket
         """
         tasks = []
 
-        tasks.append(self.__export_geotiff(self.temp, 'TEMP', bucket))
-        tasks.append(self.__export_geotiff(self.rhum, 'RHUM', bucket))
-        tasks.append(self.__export_geotiff(self.wind, 'WIND', bucket))
-        tasks.append(self.__export_geotiff(self.rain, 'RAIN', bucket))
+        tasks.append(self.__export_geotiff(self.temp, scale, prefix, 'T', bucket))
+        tasks.append(self.__export_geotiff(self.rhum, scale, prefix, 'H', bucket))
+        tasks.append(self.__export_geotiff(self.wind, scale, prefix, 'W', bucket))
+        tasks.append(self.__export_geotiff(self.rain, scale, prefix, 'R', bucket))
 
         return tasks
 
