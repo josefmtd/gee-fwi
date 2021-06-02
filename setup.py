@@ -1,15 +1,10 @@
 from setuptools import setup
 
-def readme():
-    with open('README.md') as f:
-        return f.read()
-
 setup(name = 'gee_fwi',
     author = 'Josef Matondang',
     author_email = 'admin@josefmtd.com',
     version = '1.0',
     description = 'Google Earth Engine Fire Weather Index Calculator',
-    long_description = readme(),
     classifiers = [
         'Development Status :: 4 - Beta',
         'License :: OSI Approved :: MIT License',
