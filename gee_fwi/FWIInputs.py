@@ -126,41 +126,6 @@ class FWI_GFS_GSMAP:
         self.rain = self.rain.resample(interpolation) \
             .reproject(crs = crs, scale = scale)
 
-    def __export_geotiff(self, image, scale, prefix, suffix, bucket):
-        """
-        Export image as GeoTIFF
-        """
-        date_string = f'{self.date.year}' + \
-            f'_{str(self.date.month).zfill(2)}' + \
-            f'_{str(self.date.day).zfill(2)}'
-        file_name = f'{prefix}_{date_string}_{suffix}'
-
-        task = ee.batch.Export.image.toCloudStorage(**{
-            'image' : image,
-            'description' : file_name,
-            'bucket' : bucket,
-            'region' : self.bounds,
-            'fileFormat' : 'GeoTIFF',
-            'scale' : scale,
-            'maxPixels' : 10e10
-        })
-
-        task.start()
-        return task
-
-    def export_inputs(self, scale, prefix, bucket):
-        """
-        Export all inputs as GeoTIFF to a Google Cloud Storage Bucket
-        """
-        tasks = []
-
-        tasks.append(self.__export_geotiff(self.temp, scale, prefix, 'T', bucket))
-        tasks.append(self.__export_geotiff(self.rhum, scale, prefix, 'H', bucket))
-        tasks.append(self.__export_geotiff(self.wind, scale, prefix, 'W', bucket))
-        tasks.append(self.__export_geotiff(self.rain, scale, prefix, 'R', bucket))
-
-        return tasks
-
     def update_fwi_inputs(self, date):
         """
         Updates the value of FWI input variables
