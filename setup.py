@@ -3,7 +3,7 @@ from setuptools import setup
 setup(name = 'gee_fwi',
     author = 'Josef Matondang',
     author_email = 'admin@josefmtd.com',
-    version = '1.0',
+    version = '1.0.1',
     description = 'Google Earth Engine Fire Weather Index Calculator',
     classifiers = [
         'Development Status :: 4 - Beta',
