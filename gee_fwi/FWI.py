@@ -105,10 +105,28 @@ class FWICalculator:
         """
         self.dc_prev = ee.Image(dc_prev)
 
+    def set_equatorial_mode(self, equatorial):
+        """
+        Sets the equatorial mode to use drying factor
+        and day length constant
+
+        Parameters
+        ----------
+        equatorial : bool
+            enable equatorial mode
+        Returns
+        -------
+        None
+        """
+        self.equatorial = equatorial
+
     def __update_drying_factor(self):
         """
         Updates the drying factor if the month is changed
         """
+        if self.equatorial:
+            self.drying_factor = 1.39
+
         try:
             cal = (self.date- self.date_prev).month > 0
         except AttributeError:
@@ -121,6 +139,9 @@ class FWICalculator:
         """
         Updates the day length if the month is changed
         """
+        if self.equatorial:
+            self.day_length = 9.0
+
         try:
             cal = (self.date - self.date_prev).month > 0
         except AttributeError:
