@@ -1,4 +1,7 @@
+
 # gee-fwi
+[![DOI](https://zenodo.org/badge/366247766.svg)](https://zenodo.org/badge/latestdoi/366247766)
+
 Fire Weather Index Calculation Based on Google Earth Engine
 
 ## Introduction
