@@ -178,9 +178,6 @@ class DroughtCode:
         self.obs = obs
 
     def __get_drying_factor(self):
-        """
-        Updates the drying factor if the month is changed
-        """
         if self.equatorial:
             self.drying_factor = ee.Image(1.39)
         else:
