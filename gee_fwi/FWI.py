@@ -2,7 +2,27 @@ import ee
 import eemont
 
 class FineFuelMoistureCode:
+    """
+    Fine Fuel Moisture Code Calculation
+
+    Attributes
+    ----------
+    inputs : FWIInputs
+        daily observed weather inputs at noon
+    ffmc_prev : ee.Image
+        yesterday's fine fuel moisture code
+    """
     def __init__(self, inputs, ffmc_prev):
+        """
+        Initializes the FFMC calculation object
+
+        Attributes
+        ----------
+        inputs : FWIInputs
+            daily observed weather inputs at noon
+        ffmc_prev : ee.Image
+            yesterday's fine fuel moisture code
+        """
         self.ffmc_prev = ee.Image(ffmc_prev)
         self.temp = inputs.temp
         self.rhum = inputs.rhum
@@ -10,6 +30,7 @@ class FineFuelMoistureCode:
         self.rain = inputs.rain
 
     def __raining_phase(self):
+        # Convert FFMC to moisture content
         m_o = 147.2 * (101.0 - self.ffmc_prev) / \
             (59.5 + self.ffmc_prev)
 
@@ -31,6 +52,8 @@ class FineFuelMoistureCode:
         delta_m_n = 0.0 * negligible
         delta_m = rain_mask * ( comp_mask * delta_m_c + \
             normal * delta_m_r) + delta_m_n
+
+        # Moisture content after rain
         self.mo = (m_o + delta_m).min(ee.Image(250.0))
 
     def __drying_phase(self):
@@ -55,7 +78,7 @@ class FineFuelMoistureCode:
         k_d = k_0 * 0.581 * (0.0365 * self.temp).exp()
         k_w = k_1 * 0.581 * (0.0365 * self.temp).exp()
 
-        # Wettingn and drying conditions
+        # Wetting and drying conditions
         drying = self.mo.gt(E_d)
         wetting = self.mo.lt(E_w)
         no_change = (drying + wetting).Not()
@@ -64,20 +87,56 @@ class FineFuelMoistureCode:
         m_drying = drying * (E_d + (self.mo - E_d) / 10 ** k_d)
         m_wetting = wetting * (E_w - (E_w - self.mo) / 10 ** k_w)
         m_no_change = no_change * self.mo
-
-        # Calculate Fine Fuel Moisture Code
         m = m_drying + m_wetting + m_no_change
+
+        # Calculate today's Fine Fuel Moisture Code
         self.ffmc = (59.5 * (250.0 - m) / (147.2 + m)) \
             .min(ee.Image(101.0)).rename( \
             'fine_fuel_moisture_code')
 
     def compute(self):
+        """
+        Computes the Fine Fuel Moisture Code
+
+        Returns
+        -------
+        ffmc : ee.Image
+            today's fine fuel moisture code
+        """
         self.__raining_phase()
         self.__drying_phase()
         return self.ffmc
 
 class DuffMoistureCode:
+    """
+    Duff Moisture Code Calculation
+
+    Attributes
+    ----------
+    inputs : FWIInputs
+        daily observed weather inputs at noon
+    dmc_prev : ee.Image
+        yesterday's duff moisture code
+    equatorial : bool
+        use equatorial mode to calculate day length
+    obs : datetime.date
+        observed date
+    """
     def __init__(self, inputs, dmc_prev, equatorial, obs):
+        """
+        Initializes the DMC calculation object
+
+        Attributes
+        ----------
+        inputs : FWIInputs
+            daily observed weather inputs at noon
+        dmc_prev : ee.Image
+            yesterday's duff moisture code
+        equatorial : bool
+            use equatorial mode to calculate day length
+        obs : datetime.date
+            observed date
+        """
         self.dmc_prev = ee.Image(dmc_prev)
         self.temp = inputs.temp
         self.rhum = inputs.rhum
@@ -121,6 +180,7 @@ class DuffMoistureCode:
         self.day_length = length_1 + length_2 + length_3 + length_4
 
     def __raining_phase(self):
+        # Convert DMC to moisture content
         M_o = 20.0 + 280.0 / (0.023 * self.dmc_prev).exp()
 
         # Calculate effective rain
@@ -140,12 +200,13 @@ class DuffMoistureCode:
             * rain_mask * pw_3
         b = b_1 + b_2 + b_3
 
-        # Calculate DMC after rain
+        # Calculates the moisture change after rain
         M_r = (M_o + 1000.0 * r_e / (48.77 + b * r_e))
+
+        # Calculate DMC after rain
         P_r = rain_mask * (244.72 - 43.43 * (M_r - 20.0).log())
         P_r = P_r.max(0.0)
         P_n = negligible * self.dmc_prev
-
         self.P_prev = P_r + P_n
 
     def __drying_phase(self):
@@ -154,23 +215,59 @@ class DuffMoistureCode:
 
         self.__get_day_length()
 
+        # Calculates the log drying rate
         k_d = log_drying_rate * 1.894 * (self.temp + 1.1) \
             * (100.0 - self.rhum) * self.day_length * 1e-6
         k_n = negligible * 0.0
         K = k_d + k_n
 
-        self.K = K
-
+        # Calculates today's Duff Moisture Code
         self.dmc = (self.P_prev + 100.0 * K).rename(\
             'duff_moisture_code')
 
     def compute(self):
+        """
+        Computes the Duff Moisture Code
+
+        Returns
+        -------
+        dmc : ee.Image
+            today's duff moisture code
+        """
         self.__raining_phase()
         self.__drying_phase()
         return self.dmc
 
 class DroughtCode:
+    """
+    Drought Code Calculation
+
+    Attributes
+    ----------
+    inputs : FWIInputs
+        daily observed weather inputs at noon
+    dc_prev : ee.Image
+        yesterday's drought code
+    equatorial : bool
+        use equatorial mode to calculate drying factor
+    obs : datetime.date
+        observed date
+    """
     def __init__(self, inputs, dc_prev, equatorial, obs):
+        """
+        Initializes the DC calculation object
+
+        Attributes
+        ----------
+        inputs : FWIInputs
+            daily observed weather inputs at noon
+        dmc_prev : ee.Image
+            yesterday's drought code
+        equatorial : bool
+            use equatorial mode to calculate drying factor
+        obs : datetime.date
+            observed date
+        """
         self.dc_prev = ee.Image(dc_prev)
         self.temp = inputs.temp
         self.rain = inputs.rain
@@ -206,6 +303,7 @@ class DroughtCode:
         self.drying_factor = factor_1 + factor_2
 
     def __raining_phase(self):
+        # Converts DC to moisture content
         Q_o = (800.0 * (-1 * self.dc_prev / 400.0).exp())
 
         # Calculate effective rain
@@ -213,11 +311,13 @@ class DroughtCode:
         negligible = rain_mask.Not()
         r_d = rain_mask * (0.83 * self.rain - 1.27)
 
+        # Calculates moisture change
         Q_r = Q_o + 3.937 * r_d
+
+        # Calculates DC after rain
         D_rain = rain_mask * (400.0 * (800.0 / Q_r).log())
         D_rain = D_rain.max(0.0)
         D_negligible = negligible * self.dc_prev
-
         self.D_prev = D_rain + D_negligible
 
     def __drying_phase(self):
@@ -226,25 +326,63 @@ class DroughtCode:
 
         self.__get_drying_factor()
 
+        # Calculates drying equation
         V_d = (0.36 * (self.temp + 2.8) + self.drying_factor) \
             * drying_phase
         V_n = self.drying_factor * negligible
         V = V_d + V_n
 
+        # Calculate today's Drought Code
         self.dc = (self.D_prev + 0.5 * V).rename(\
             'drought_code')
 
     def compute(self):
+        """
+        Computes the Drought Code
+
+        Returns
+        -------
+        dc : ee.Image
+            today's drought code
+        """
         self.__raining_phase()
         self.__drying_phase()
         return self.dc
 
 class InitialSpreadIndex:
+    """
+    Initial Spread Index Calculation
+
+    Attributes
+    ----------
+    wind : FWIInputs.wind
+        wind speed observed at noon in kph
+    ffmc : FineFuelMoistureCode.ffmc
+        today's fine fuel moisture code
+    """
     def __init__(self, wind, ffmc):
+        """
+        Initializes the ISI calculation object
+
+        Attributes
+        ----------
+        wind : FWIInputs.wind
+            wind speed observed at noon in kph
+        ffmc : FineFuelMoistureCode.ffmc
+            today's fine fuel moisture code
+        """
         self.wind = wind
         self.ffmc = ffmc
 
     def compute(self):
+        """
+        Computes the Initial Spread Index
+
+        Returns
+        -------
+        isi : ee.Image
+            today's initial spread index
+        """
         f_Wind = (0.05039 * self.wind).exp()
 
         m = 147.2 * (101.0 - self.ffmc) / (59.5 + self.ffmc)
@@ -256,11 +394,41 @@ class InitialSpreadIndex:
         return self.isi
 
 class BuildupIndex:
+    """
+    Buildup Index Calculation
+
+    Attributes
+    ----------
+    dmc : ee.Image
+        today's duff moisture code
+    dc : ee.Image
+        today's drought code
+    """
     def __init__(self, dmc, dc):
+        """
+        Initializes BUI calculation object
+
+        Attributes
+        ----------
+        dmc : ee.Image
+            today's duff moisture code
+        dc : ee.Image
+            today's drought code
+        """
         self.dmc = dmc
         self.dc=  dc
 
     def compute(self):
+        """
+        Computes the Buildup Index
+
+        Returns
+        -------
+        bui : ee.Image
+            today's buildup index
+        isi : ee.Image
+            today's initial spread index
+        """
         cond = self.dmc.lte(0.4 * self.dc)
         not_cond = cond.Not()
 
@@ -274,7 +442,27 @@ class BuildupIndex:
         return self.bui
 
 class FireWeatherIndex:
+    """
+    Fire Weather Index Calculation
+
+    Attributes
+    ----------
+    isi : ee.Image
+        today's initial spread index
+    bui : ee.Image
+        today's buildup index
+    """
     def __init__(self, isi, bui):
+        """
+        Initializes FWI calculation object
+
+        Attributes
+        ----------
+        isi : ee.Image
+            today's initial spread index
+        bui : ee.Image
+            today's buildup index
+        """
         self.isi = isi
         self.bui = bui
 
@@ -285,6 +473,14 @@ class FireWeatherIndex:
         return 0.626 * self.bui ** 0.809 + 2.0
 
     def compute(self):
+        """
+        Computes the Fire Weather Index
+
+        Returns
+        -------
+        fwi : ee.Image
+            today's fire weather index
+        """
         heat_transfer = self.bui.gt(80)
         normal = heat_transfer.Not()
 
