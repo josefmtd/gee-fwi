@@ -389,7 +389,7 @@ class InitialSpreadIndex:
         f_F = 91.9 * (-0.1386 * m).exp() * (1.0 + m ** 5.31 / \
             (4.93 * 1e7))
 
-        self.isi = (0.208 * f_Wind * f_F) \
+        self.isi = (0.208 * f_Wind * f_F).max(0) \
             .rename('initial_spread_index')
         return self.isi
 
@@ -438,7 +438,7 @@ class BuildupIndex:
             (self.dmc + 0.4 * self.dc)) * \
             (0.92 + (0.0114 * self.dmc) ** 1.7)) * not_cond
 
-        self.bui = (B_1 + B_2).rename('buildup_index')
+        self.bui = (B_1 + B_2).max(0).rename('buildup_index')
         return self.bui
 
 class FireWeatherIndex:
@@ -496,7 +496,7 @@ class FireWeatherIndex:
         B_log = B.abs().log() * S_scale
         fwi_s = ((2.72 * (0.434 * B_log) ** 0.647).exp()) * S_scale
         fwi_b = B * B_scale
-        self.fwi = (fwi_s + fwi_b).rename('fire_weather_index')
+        self.fwi = (fwi_s + fwi_b).max(0).rename('fire_weather_index')
         return self.fwi
 
 class FWICalculator:
