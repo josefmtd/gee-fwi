@@ -493,7 +493,8 @@ class FireWeatherIndex:
         S_scale = B.gt(1.0)
         B_scale = S_scale.Not()
 
-        fwi_s = ((2.72 * (0.434 * B.log()) ** 0.647).exp()) * S_scale
+        B_log = B.abs().log() * S_scale
+        fwi_s = ((2.72 * (0.434 * B_log) ** 0.647).exp()) * S_scale
         fwi_b = B * B_scale
         self.fwi = (fwi_s + fwi_b).rename('fire_weather_index')
         return self.fwi
