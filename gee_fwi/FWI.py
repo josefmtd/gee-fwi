@@ -626,7 +626,6 @@ class FWICalculator:
         self.ffmc_prev = self.ffmc
         self.dmc_prev = self.dmc
         self.dc_prev = self.dc
-        self.date_prev = self.date
 
         self.obs = obs
         self.inputs = inputs
